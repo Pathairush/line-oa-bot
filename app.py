@@ -3,10 +3,14 @@ from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 import os
+import boto3
+import datetime
+import json
 
 app = Chalice(app_name='line-oa-bot')
 line_bot = LineBotApi(os.getenv('CHANNEL_ACCESS_TOKEN'))
 handler = WebhookHandler(os.getenv('CHANNEL_SECRET_ID'))
+s3 = boto3.client('s3', aws_access_key_id=os.getenv("aws_access_key_id"), aws_secret_access_key=os.getenv("aws_secret_access_key"))
 
 @app.route('/')
 def index():
@@ -33,6 +37,9 @@ def callback():
 
 @handler.add(MessageEvent, message=TextMessage)
 def reply_message(event):
+    # put event to s3
+    s3.put_object(Body=str(event), Bucket=os.getenv("S3_BUCKET_NAME"), Key=f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+    # reply message
     line_bot.reply_message(
         event.reply_token,
         TextSendMessage(text=event.message.text)
