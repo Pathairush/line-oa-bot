@@ -6,6 +6,10 @@ import os
 import boto3
 import datetime
 import json
+import pandas as pd
+import numpy as np
+import uuid
+import awswrangler as wr
 
 app = Chalice(app_name='line-oa-bot')
 line_bot = LineBotApi(os.getenv('CHANNEL_ACCESS_TOKEN'))
@@ -37,10 +41,31 @@ def callback():
 
 @handler.add(MessageEvent, message=TextMessage)
 def reply_message(event):
-    # put event to s3
-    s3.put_object(Body=str(event), Bucket=os.getenv("S3_BUCKET_NAME"), Key=f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+    # save event
+    save_event_to_s3(event, s3)
     # reply message
     line_bot.reply_message(
         event.reply_token,
         TextSendMessage(text=event.message.text)
+    )
+
+def save_event_to_s3(event, s3):
+    # convert event to dict
+    data = json.loads(str(event))
+    # input to pd dataframe
+    df = pd.DataFrame(data, index=[0])
+    # write dataframe to parquet
+    uniq_nm = str(uuid.uuid4())
+    filename = f'/tmp/{uniq_nm}.parquet'
+    key = f"year={datetime.datetime.now().strftime('%Y')}/month={datetime.datetime.now().strftime('%m')}/day={datetime.datetime.now().strftime('%d')}/{uniq_nm}.parquet"
+    wr.s3.to_parquet(
+        df = df, 
+        path = 's3://' + os.getenv("S3_BUCKET_NAME") + '/' + key,
+        index=False,
+        compression='snappy',
+        boto3_session = boto3.session.Session(
+            aws_access_key_id=os.getenv("aws_access_key_id"),
+            aws_secret_access_key=os.getenv("aws_secret_access_key"),
+            region_name ='ap-southeast-1'
+        )
     )

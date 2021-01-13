@@ -1,3 +1,4 @@
 line-bot-sdk
 boto3
 datetime
+awswrangler
