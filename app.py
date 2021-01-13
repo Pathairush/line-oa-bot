@@ -14,7 +14,6 @@ import awswrangler as wr
 app = Chalice(app_name='line-oa-bot')
 line_bot = LineBotApi(os.getenv('CHANNEL_ACCESS_TOKEN'))
 handler = WebhookHandler(os.getenv('CHANNEL_SECRET_ID'))
-s3 = boto3.client('s3', aws_access_key_id=os.getenv("aws_access_key_id"), aws_secret_access_key=os.getenv("aws_secret_access_key"))
 
 @app.route('/')
 def index():
@@ -42,14 +41,14 @@ def callback():
 @handler.add(MessageEvent, message=TextMessage)
 def reply_message(event):
     # save event
-    save_event_to_s3(event, s3)
+    save_event_to_s3(event)
     # reply message
     line_bot.reply_message(
         event.reply_token,
         TextSendMessage(text=event.message.text)
     )
 
-def save_event_to_s3(event, s3):
+def save_event_to_s3(event):
     # convert event to dict
     data = json.loads(str(event))
     # input to pd dataframe
